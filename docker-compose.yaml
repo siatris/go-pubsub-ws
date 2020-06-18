@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  example-notification:
+    build: 
+      context: .
+      args:
+        main_path: "./examples/notification.go"
+    depends_on:
+      - redis
+    networks:
+      - overlay
+    environment:
+      - REDIS_URL=redis:6379
+    ports:
+      - 8080:8080
+  redis:
+    image: redis
+    networks:
+       - overlay
+
+networks:
+  overlay:
