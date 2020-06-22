@@ -3,17 +3,17 @@ package pubsub
 import "go-pubsub-ws/pkg/websocket"
 
 type Publication struct {
-	origin      *websocket.WSConn
+	origin      websocket.WSConn
 	namespace   string
 	destination string
 	data        interface{}
 }
 
-func CreatePublication(origin *websocket.WSConn, destination, publicationType string, data interface{}) *Publication {
+func CreatePublication(origin websocket.WSConn, destination, publicationType string, data interface{}) *Publication {
 	return &Publication{origin, destination, publicationType, data}
 }
 
-func (p *Publication) Origin() *websocket.WSConn {
+func (p *Publication) Origin() websocket.WSConn {
 	return p.origin
 }
 

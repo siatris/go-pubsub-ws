@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"go-pubsub-ws/pkg/pubsub"
 	"go-pubsub-ws/pkg/websocket"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 )
 
@@ -33,13 +35,17 @@ func main() {
 	ctx, done := context.WithCancel(context.Background())
 
 	wss := websocket.New(
-		websocket.WithAuthentication(func(token string, conn *websocket.WSConn) (interface{}, error) {
+		websocket.WithAuthentication(func(token string, conn websocket.WSConn) (interface{}, error) {
 			// Authenticate user, can check database here.
 			// Then return error or AuthClaims for the user
-			return AuthClaims{
-				IsAdmin:  true,
-				UserName: "test",
-			}, nil
+			if token == "123" {
+				return AuthClaims{
+					IsAdmin:  true,
+					UserName: "test",
+				}, nil
+			}
+
+			return nil, errors.New("Invalid token")
 		}),
 	)
 	go wss.Run(ctx, ":8080")
@@ -48,9 +54,21 @@ func main() {
 	if rURL := os.Getenv("REDIS_URL"); rURL != "" {
 		redisURL = rURL
 	}
+
+	redisClient := redis.NewUniversalClient(&redis.UniversalOptions{
+		Addrs:    []string{redisURL},
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	status := redisClient.Ping(ctx)
+	if status.Err() != nil {
+		log.Fatalf("Failed to connect to redis: %+v", status.Err())
+	}
+
 	ps := pubsub.New(
 		pubsub.WithWSService(wss),
-		pubsub.WithRedisURL(redisURL),
+		pubsub.WithRedisProvider(redisClient),
 	)
 
 	ps.HandlePublication("notification", func(pub *pubsub.Publication) error {
@@ -64,7 +82,7 @@ func main() {
 		return nil
 	})
 
-	ps.HandleSubscription("notification", func(conn *websocket.WSConn) (pubsub.Subscription, error) {
+	ps.HandleSubscription("notification", func(conn websocket.WSConn) (pubsub.Subscription, error) {
 		// Add here any kind of checks
 		if conn.ID().String() == "" {
 			// If function return nil, it means the subscription was rejected.
@@ -75,7 +93,7 @@ func main() {
 		subscription := ps.CreateSubscription(ctx, conn, fmt.Sprintf("notification-%s", conn.AuthClaims().(AuthClaims).UserName))
 
 		// Let's add a middleware to do some kind of message manipulation
-		subscription.Use(func(msg *websocket.WSMessage) *websocket.WSMessage {
+		subscription.Use(func(msg websocket.WSMessage) websocket.WSMessage {
 			// This example middleware would change every message on this subscription to the following:
 			return websocket.NewMessage(msg.Conn(), "notification", []string{"Fake Message"})
 		})

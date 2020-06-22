@@ -8,39 +8,45 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type WSTypeHandler func(*WSMessage)
+func WrapConnection(conn *websocket.Conn) *wsconn {
+	return &wsconn{
+		conn:     conn,
+		uid:      uuid.New(),
+		handlers: make(map[string][]WSHandler),
+	}
+}
 
-type WSConn struct {
+type wsconn struct {
 	conn       *websocket.Conn
 	uid        uuid.UUID
-	handlers   map[string][]WSTypeHandler
+	handlers   map[string][]WSHandler
 	authClaims interface{}
 	sync.RWMutex
 }
 
-func (c *WSConn) AuthClaims() interface{} {
+func (c *wsconn) AuthClaims() interface{} {
 	return c.authClaims
 }
 
-func (c *WSConn) ID() uuid.UUID {
+func (c *wsconn) ID() uuid.UUID {
 	return c.uid
 }
 
-func (c *WSConn) WriteMessage(msg *WSMessage) error {
-	return c.conn.WriteJSON([]interface{}{msg.MsgType, msg.Data})
+func (c *wsconn) WriteMessage(msg WSMessage) error {
+	return c.conn.WriteJSON(msg)
 }
 
-func (c *WSConn) AddHandler(t string, handler WSTypeHandler) int {
+func (c *wsconn) AddHandler(t string, handler WSHandler) int {
 	c.RWMutex.Lock()
 	defer c.RWMutex.Unlock()
 	if _, ok := c.handlers[t]; !ok {
-		c.handlers[t] = make([]WSTypeHandler, 0)
+		c.handlers[t] = make([]WSHandler, 0)
 	}
 	c.handlers[t] = append(c.handlers[t], handler)
 	return len(c.handlers[t]) - 1
 }
 
-func (c *WSConn) RemoveHandler(t string, id int) {
+func (c *wsconn) RemoveHandler(t string, id int) {
 	c.RWMutex.Lock()
 	defer c.RWMutex.Unlock()
 	if _, ok := c.handlers[t]; !ok {
@@ -49,35 +55,63 @@ func (c *WSConn) RemoveHandler(t string, id int) {
 	c.handlers[t] = append(c.handlers[t][:id], c.handlers[t][id+1:]...)
 }
 
-func (c *WSConn) Handle(ctx context.Context) {
-	defer c.conn.Close()
+func (c *wsconn) Handle(ctx context.Context) {
+	defer c.Close()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			var msg []interface{}
+			var msg wsmessage
 			err := c.conn.ReadJSON(&msg)
 			if err != nil {
 				return
 			}
-			if len(msg) != 2 {
-				continue
-			}
-			t := msg[0].(string)
+			t := msg.msgType
 			c.RWMutex.RLock()
 			if handlers, ok := c.handlers[t]; ok {
 				for _, h := range handlers {
-					var handler func(*WSMessage) = h
-					go handler(&WSMessage{
+					var handler func(WSMessage) = h
+					go handler(&wsmessage{
 						conn:    c,
-						MsgType: t,
-						Data:    msg[1],
+						msgType: t,
+						data:    msg.data,
 					})
 				}
 			}
+
+			if wildcardHandlers, ok := c.handlers["*"]; ok {
+				for _, h := range wildcardHandlers {
+					var handler func(WSMessage) = h
+					go handler(&wsmessage{
+						conn:    c,
+						msgType: t,
+						data:    msg.data,
+					})
+				}
+			}
+
 			c.RWMutex.RUnlock()
 		}
 	}
+}
+
+func (c *wsconn) ReceiveMessage() (WSMessage, error) {
+	var msg wsmessage
+
+	err := c.conn.ReadJSON(&msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &msg, nil
+}
+
+func (c *wsconn) SendMessage(mtype string, data interface{}) error {
+	return c.conn.WriteJSON(NewMessage(c, mtype, data))
+}
+
+func (c *wsconn) Close() error {
+	return c.conn.Close()
 }

@@ -13,10 +13,18 @@ services:
       - REDIS_URL=redis:6379
     ports:
       - 8080:8080
+  test:
+    build: 
+      context: .
+      dockerfile: Dockerfile-test
+    depends_on:
+      - redis
+    networks:
+      - overlay
   redis:
     image: redis
     networks:
-       - overlay
+        - overlay
 
 networks:
   overlay:
