@@ -114,12 +114,7 @@ func (ps *PubSubService) Run(ctx context.Context) {
 		conn.Handle(ctx)
 	})
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
+	ps.wss.Run(ctx)
 }
 
 func (ps *PubSubService) CreateSubscription(ctx context.Context, conn websocket.WSConn, namespaces ...string) Subscription {

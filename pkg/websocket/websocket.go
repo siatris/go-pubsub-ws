@@ -15,6 +15,7 @@ type wsService struct {
 	incoming     chan WSConn
 	connHandlers []func(WSConn)
 	authFunc     func(token string, conn WSConn) (interface{}, error)
+	listen       string
 	sync.RWMutex
 }
 
@@ -49,9 +50,9 @@ func (ws *wsService) HandleConnect(handle func(conn WSConn)) {
 	ws.connHandlers = append(ws.connHandlers, handle)
 }
 
-func (ws *wsService) Run(ctx context.Context, listen string) {
+func (ws *wsService) Run(ctx context.Context) {
 	http.HandleFunc("/", ws.handleNewConnection(ctx))
-	go http.ListenAndServe(listen, nil)
+	go http.ListenAndServe(ws.listen, nil)
 	for {
 		select {
 		case <-ctx.Done():
@@ -72,6 +73,7 @@ func New(opts ...WithOption) WSService {
 	ws := &wsService{
 		connHandlers: make([]func(WSConn), 0),
 		incoming:     make(chan WSConn),
+		listen:       "localhost:8080",
 	}
 
 	for _, opt := range opts {
@@ -84,5 +86,11 @@ func New(opts ...WithOption) WSService {
 func WithAuthentication(authFunc func(token string, conn WSConn) (interface{}, error)) WithOption {
 	return func(s *wsService) {
 		s.authFunc = authFunc
+	}
+}
+
+func WithListenAddress(listen string) WithOption {
+	return func(s *wsService) {
+		s.listen = listen
 	}
 }

@@ -35,7 +35,6 @@ func createPubSub(ctx context.Context) *pubsub.PubSubService {
 			return "test", nil
 		}),
 	)
-	go wss.Run(ctx, "localhost:8080")
 
 	redisClient := redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:    []string{"redis:6379"},

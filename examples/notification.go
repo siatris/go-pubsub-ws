@@ -48,7 +48,6 @@ func main() {
 			return nil, errors.New("Invalid token")
 		}),
 	)
-	go wss.Run(ctx, ":8080")
 
 	var redisURL = "localhost:6379"
 	if rURL := os.Getenv("REDIS_URL"); rURL != "" {

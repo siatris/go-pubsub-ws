@@ -38,5 +38,5 @@ type WSConn interface {
 
 type WSService interface {
 	HandleConnect(func(conn WSConn))
-	Run(context.Context, string)
+	Run(context.Context)
 }
