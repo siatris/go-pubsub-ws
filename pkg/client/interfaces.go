@@ -3,8 +3,8 @@ package client
 import (
 	"io"
 
-	"go-pubsub-ws/pkg/pubsub"
-	"go-pubsub-ws/pkg/websocket"
+	"github.com/siatris/go-pubsub-ws/pkg/pubsub"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 )
 
 type Client interface {

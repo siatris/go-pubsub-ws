@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"go-pubsub-ws/pkg/client"
-	"go-pubsub-ws/pkg/pubsub"
-	"go-pubsub-ws/pkg/websocket"
+	"github.com/siatris/go-pubsub-ws/pkg/client"
+	"github.com/siatris/go-pubsub-ws/pkg/pubsub"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 
 	"github.com/go-redis/redis/v8"
 )

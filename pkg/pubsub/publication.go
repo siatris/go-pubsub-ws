@@ -1,6 +1,6 @@
 package pubsub
 
-import "go-pubsub-ws/pkg/websocket"
+import "github.com/siatris/go-pubsub-ws/pkg/websocket"
 
 type Publication struct {
 	origin      websocket.WSConn

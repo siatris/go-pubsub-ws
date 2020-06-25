@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"go-pubsub-ws/pkg/pubsub"
-	"go-pubsub-ws/pkg/websocket"
+	"github.com/siatris/go-pubsub-ws/pkg/pubsub"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"

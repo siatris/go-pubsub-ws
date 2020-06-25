@@ -1,4 +1,4 @@
-module go-pubsub-ws
+module github.com/siatris/go-pubsub-ws
 
 go 1.14
 

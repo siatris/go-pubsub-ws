@@ -2,10 +2,10 @@ package pubsub
 
 import (
 	"context"
-	"go-pubsub-ws/pkg/websocket"
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 )
 
 type PubSubService struct {

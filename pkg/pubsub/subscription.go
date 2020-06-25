@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"go-pubsub-ws/pkg/websocket"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 
 	"github.com/go-redis/redis/v8"
 )

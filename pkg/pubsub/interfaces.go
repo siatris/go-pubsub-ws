@@ -1,9 +1,8 @@
 package pubsub
 
 import (
-	"go-pubsub-ws/pkg/websocket"
-
 	"github.com/go-redis/redis/v8"
+	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 )
 
 type RedisProvider interface {
