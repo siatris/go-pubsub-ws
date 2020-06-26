@@ -96,19 +96,7 @@ func (ps *PubSubService) Run(ctx context.Context) {
 
 		conn.AddHandler(PUBLISH_TYPE, func(msg websocket.WSMessage) {
 			pub := msg.Data().(map[string]interface{})
-			for namespace, handler := range ps.pubHandlers {
-				if namespace == pub["Namespace"].(string) {
-					err := handler(&Publication{
-						origin: msg.Conn(),
-						data:   pub["Data"].(string),
-					})
-					if err != nil {
-						return
-					}
-				}
-			}
-
-			ps.rdb.Publish(ctx, pub["Namespace"].(string), pub["Data"].(string))
+			ps.PublishTo(ctx, msg.Conn(), pub["Namespace"].(string), pub["Data"])
 		})
 
 		conn.Handle(ctx)
@@ -120,4 +108,23 @@ func (ps *PubSubService) Run(ctx context.Context) {
 func (ps *PubSubService) CreateSubscription(ctx context.Context, conn websocket.WSConn, namespaces ...string) Subscription {
 	redisSub := ps.rdb.Subscribe(ctx, namespaces...)
 	return &subscription{conn: conn, namespaces: namespaces, sub: redisSub, middlewares: make([]Middleware, 0)}
+}
+
+func (ps *PubSubService) PublishTo(ctx context.Context, origin websocket.WSConn, namespace string, data interface{}) error {
+	pub := &Publication{
+		origin: origin,
+		data:   data,
+	}
+
+	for namespace, handler := range ps.pubHandlers {
+		if namespace == namespace {
+			err := handler(pub)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	ps.rdb.Publish(ctx, namespace, data)
+	return nil
 }
