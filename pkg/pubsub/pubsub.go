@@ -4,24 +4,21 @@ import (
 	"context"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/siatris/go-pubsub-ws/pkg/websocket"
 )
 
 type PubSubService struct {
-	wss              websocket.WSService
-	rdb              RedisProvider
-	knownConnections map[uuid.UUID]websocket.WSConn
-	subHandlers      map[string]func(conn websocket.WSConn) (Subscription, error)
-	pubHandlers      map[string]func(msg *Publication) error
+	wss         websocket.WSService
+	rdb         RedisProvider
+	subHandlers map[string]func(conn websocket.WSConn) (Subscription, error)
+	pubHandlers map[string]func(msg *Publication) error
 	sync.RWMutex
 }
 
 func New(opts ...WithOption) *PubSubService {
 	pss := &PubSubService{
-		knownConnections: make(map[uuid.UUID]websocket.WSConn, 0),
-		subHandlers:      make(map[string]func(conn websocket.WSConn) (Subscription, error), 0),
-		pubHandlers:      make(map[string]func(msg *Publication) error, 0),
+		subHandlers: make(map[string]func(conn websocket.WSConn) (Subscription, error), 0),
+		pubHandlers: make(map[string]func(msg *Publication) error, 0),
 	}
 
 	for _, opt := range opts {
@@ -54,55 +51,56 @@ func (ps *PubSubService) HandlePublication(namespace string, handler func(msg *P
 }
 
 func (ps *PubSubService) Run(ctx context.Context) {
-	ps.wss.HandleConnect(func(conn websocket.WSConn) {
-		ps.knownConnections[conn.ID()] = conn
-		conn.AddHandler(SUBSCRIBE_TYPE, func(msg websocket.WSMessage) {
-			subMsg := msg.Data().(map[string]interface{})
-			var sub Subscription
+	if ps.wss != nil {
+		ps.wss.HandleConnect(func(conn websocket.WSConn) {
+			conn.AddHandler(SUBSCRIBE_TYPE, func(msg websocket.WSMessage) {
+				subMsg := msg.Data().(map[string]interface{})
+				var sub Subscription
 
-			for namespace, handler := range ps.subHandlers {
-				if namespace == subMsg["Namespace"].(string) {
-					var err error
-					sub, err = handler(msg.Conn())
-					if err != nil {
-						return
+				for namespace, handler := range ps.subHandlers {
+					if namespace == subMsg["Namespace"].(string) {
+						var err error
+						sub, err = handler(msg.Conn())
+						if err != nil {
+							return
+						}
+						break
 					}
-					break
-				}
-			}
-
-			if sub == nil {
-				return
-			}
-
-			for {
-				msg, err := sub.ReceiveMessage(ctx)
-				if err != nil {
-					continue
 				}
 
-				if msg != nil {
-					msg = sub.Handle(msg)
-					conn.WriteMessage(msg)
-				}
-
-				select {
-				case <-ctx.Done():
+				if sub == nil {
 					return
-				default:
 				}
-			}
+
+				for {
+					msg, err := sub.ReceiveMessage(ctx)
+					if err != nil {
+						continue
+					}
+
+					if msg != nil {
+						msg = sub.Handle(msg)
+						conn.WriteMessage(msg)
+					}
+
+					select {
+					case <-ctx.Done():
+						return
+					default:
+					}
+				}
+			})
+
+			conn.AddHandler(PUBLISH_TYPE, func(msg websocket.WSMessage) {
+				pub := msg.Data().(map[string]interface{})
+				ps.PublishTo(ctx, msg.Conn(), pub["Namespace"].(string), pub["Data"])
+			})
+
+			conn.Handle(ctx)
 		})
 
-		conn.AddHandler(PUBLISH_TYPE, func(msg websocket.WSMessage) {
-			pub := msg.Data().(map[string]interface{})
-			ps.PublishTo(ctx, msg.Conn(), pub["Namespace"].(string), pub["Data"])
-		})
-
-		conn.Handle(ctx)
-	})
-
-	ps.wss.Run(ctx)
+		ps.wss.Run(ctx)
+	}
 }
 
 func (ps *PubSubService) CreateSubscription(ctx context.Context, conn websocket.WSConn, namespaces ...string) Subscription {
