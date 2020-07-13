@@ -1,9 +1,5 @@
-# Realiza PubSub WebSocket server 
+# PubSub WebSocket server 
 
-## WIP: TODO
+## Depedencias
 
-- Adicionar logs
-- Criar tests unitários e de integração
-- Stress test
-- Melhorar API
-- Melhorar Docker
+`make`
